@@ -1,14 +1,17 @@
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { AppRoutes } from './routes';
 
 /**
  * App — Root application component.
- * Wraps the entire app in AuthProvider for global auth state.
+ * Wraps the entire app in AuthProvider and ToastProvider for global state.
  */
 const App = () => {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+      </ToastProvider>
     </AuthProvider>
   );
 };

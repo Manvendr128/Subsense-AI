@@ -56,6 +56,26 @@ const billSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isSubscription: {
+  type: Boolean,
+  default: false,
+},
+
+subscriptionType: {
+  type: String,
+  default: '',
+  trim: true,
+},
+
+billingCycle: {
+  type: String,
+  default: '',
+  trim: true,
+},
+
+renewalDate: {
+  type: Date,
+},
     recurringFrequency: {
       type: String,
       default: 'Monthly',

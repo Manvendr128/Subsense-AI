@@ -1,18 +1,161 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require("@google/genai");
 const Bill = require('../models/Bill');
 const Subscription = require('../models/Subscription');
 
 /**
  * AI Financial Service utilizing Google Gemini API with fallback financial intelligence engine.
  */
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
-const getGeminiModel = () => {
-  if (process.env.GEMINI_API_KEY) {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    return genAI.getGenerativeModel({ model: 'gemini-flash-lite-latest' });
+async function analyzeBill(billText) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: `
+    Extract the bill information.
+    
+    Bill Text:
+    
+    ${billText}
+    
+    Return ONLY valid JSON.
+    {
+      "merchant": "",
+      "amount": 0,
+      "category": "",
+      "billingCycle": "",
+      "renewalDate": ""
+    }
+    `,
+    });
+
+const cleanedText = response.text
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error(error);
+    throw error;
   }
-  return null;
-};
+}
+async function detectSubscription(billData) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: `
+You are an AI financial assistant.
+
+Analyze this bill:
+
+${JSON.stringify(billData)}
+
+Determine whether it is a recurring subscription.
+
+Examples:
+- Netflix → Subscription
+- Spotify → Subscription
+- Amazon Shopping → Not Subscription
+- Electricity Bill → Utility Bill
+- Restaurant Bill → Not Subscription
+
+Return ONLY valid JSON.
+
+{
+  "isSubscription": true,
+  "subscriptionType": "",
+  "renewalFrequency": "",
+  "confidence": 0.98,
+  "reason": ""
+}
+`,
+    });
+
+    const cleanedText = response.text
+  .replace(/```json/g, "")
+  .replace(/```/g, "")
+  .trim();
+
+return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Subscription Detection Error:", error);
+    throw error;
+  }
+}
+async function generateRecommendations(financialData) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: `
+You are an AI Financial Advisor.
+
+Analyze the following financial information:
+
+${JSON.stringify(financialData)}
+
+Provide 3 practical savings recommendations.
+
+Return ONLY valid JSON.
+
+{
+  "recommendations": [
+    "",
+    "",
+    ""
+  ]
+}
+`,
+    });
+
+    const cleanedText = response.text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Recommendation Error:", error);
+    throw error;
+  }
+}
+async function predictExpenses(expenseHistory) {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: `
+You are an AI Financial Forecasting Assistant.
+
+A user has the following monthly expenses:
+
+${JSON.stringify(expenseHistory)}
+
+Predict the user's next month's expense based on the trend.
+
+Return ONLY valid JSON.
+
+{
+  "predictedExpense": 0,
+  "reason": ""
+}
+`,
+    });
+
+    const cleanedText = response.text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Expense Prediction Error:", error);
+    throw error;
+  }
+}
+
+
 
 /**
  * Perform comprehensive AI analysis on user bills, subscriptions, and spending trends.
@@ -63,19 +206,29 @@ const analyzeUserFinances = async (userId) => {
     riskAlerts.push(`Duplicate Subscriptions Detected: Multiple active subscriptions found for provider "${duplicateSubscriptions[0].provider}".`);
   }
 
-  const model = getGeminiModel();
   let summary = `Total tracked expenses: $${(totalBillAmount + totalSubAmount).toFixed(2)} across ${bills.length} bill(s) and ${subscriptions.length} subscription(s).`;
 
-  if (model) {
-    try {
-      const prompt = `Act as a Senior Financial Advisor for SubSense AI. Briefly summarize this user's finances in 2 concise sentences:\nBills Total: $${totalBillAmount}, Active Subscriptions: $${totalSubAmount}/mo. Categories: ${JSON.stringify(categoryMap)}.`;
-      const result = await model.generateContent(prompt);
-      summary = result.response.text().trim();
-    } catch (e) {
-      console.warn('[AI Warning] Gemini API call failed, using fallback:', e.message);
-    }
-  }
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: `
+Act as a Senior Financial Advisor.
 
+Briefly summarize this user's finances in 2 sentences.
+
+Bills Total: $${totalBillAmount}
+
+Active Subscriptions: $${totalSubAmount}/month
+
+Categories:
+${JSON.stringify(categoryMap)}
+`,
+  });
+
+  summary = response.text.trim();
+} catch (e) {
+  console.warn("[AI Warning]", e.message);
+}
   return {
     expenseSummary: {
       totalBillAmount: Math.round(totalBillAmount * 100) / 100,
@@ -121,25 +274,31 @@ User Financial Context:
 - Overdue Bills: ${bills.filter((b) => b.status === 'Overdue').length}
 `;
 
-  const model = getGeminiModel();
-  let answer = '';
-  let modelName = 'gemini-flash-lite-latest';
+let answer = "";
+let modelName = "gemini-3.1-flash-lite-preview";
 
-  if (model) {
-    try {
-      const prompt = `
-System: You are SubSense AI, an autonomous financial copilot and personal financial advisor.
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-3.1-flash-lite-preview",
+    contents: `
+System: You are SubSense AI Financial Copilot, an expert personal financial advisor.
+
 ${contextData}
-User Question: "${question}"
-Instructions: Answer directly, intelligently, and accurately. Keep responses concise, clear, and actionable. Include formatted numbers where appropriate.
-`;
-      const result = await model.generateContent(prompt);
-      answer = result.response.text().trim();
-    } catch (err) {
-      console.warn('[AI Chat Error] Gemini call fallback triggered:', err.message);
-    }
-  }
 
+User Question:
+"${question}"
+
+Instructions:
+Answer directly, accurately using the context above.
+Keep it concise, actionable, and encouraging.
+Never hallucinate fake numbers.
+`,
+  });
+
+  answer = response.text.trim();
+} catch (err) {
+  console.warn("[AI Chat Error]", err.message);
+}
   // Fallback Rule Engine if API key quota rate-limited or offline
   if (!answer) {
     modelName = 'subsense-financial-engine';
@@ -164,6 +323,10 @@ Instructions: Answer directly, intelligently, and accurately. Keep responses con
 };
 
 module.exports = {
+  analyzeBill,
+  detectSubscription,
+  generateRecommendations,
+  predictExpenses,
   analyzeUserFinances,
   chatWithAI,
 };

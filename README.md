@@ -344,7 +344,7 @@ Dashboard + Smart Alerts
 # 👥 Team
 
 | Manvendra Singh | Team Lead • AI Integration • Backend |
-| Srishti | Database • API Development |
+| Drishti | Database • API Development |
 | Akhil Garg | Frontend • UI/UX • Dashboard Development |
 
 ---

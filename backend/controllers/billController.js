@@ -1,4 +1,8 @@
 const Bill = require('../models/Bill');
+const {
+  analyzeBill,
+  detectSubscription,
+} = require('../services/aiService');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 
@@ -12,10 +16,28 @@ const createBill = async (req, res, next) => {
     const billData = {
       ...req.body,
       user: req.user._id,
-    };
+  };
 
-    const bill = await Bill.create(billData);
-    return ApiResponse.send(res, 201, 'Bill created successfully', bill);
+// AI Bill Analysis
+if (req.body.ocrText) {
+
+  const extracted = await analyzeBill(req.body.ocrText);
+
+  billData.merchant = extracted.merchant;
+  billData.amount = extracted.amount;
+  billData.category = extracted.category;
+  billData.billingCycle = extracted.billingCycle;
+  billData.recurringFrequency = extracted.billingCycle;
+  billData.renewalDate = extracted.renewalDate;
+
+  const subscription = await detectSubscription(extracted);
+
+  billData.isSubscription = subscription.isSubscription;
+  billData.isRecurring = subscription.isSubscription;
+  billData.subscriptionType = subscription.subscriptionType;
+}
+const bill = await Bill.create(billData);    
+return ApiResponse.send(res, 201, 'Bill created successfully', bill);
   } catch (error) {
     next(error);
   }

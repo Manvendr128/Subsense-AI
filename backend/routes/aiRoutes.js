@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { analyzeSpending, askAIChat } = require('../controllers/aiController');
+const {
+  analyzeSpending,
+  getRecommendations,
+  predictUserExpenses,
+  askAIChat,
+} = require('../controllers/aiController');
 const { protect } = require('../middleware/authMiddleware');
 
 // All AI routes require authentication
@@ -14,10 +19,23 @@ router.use(protect);
 router.post('/analyze', analyzeSpending);
 
 /**
+ * @route   POST /api/v1/ai/recommendations
+ * @desc    Generate AI financial recommendations
+ * @access  Private
+ */
+router.post('/recommendations', getRecommendations);
+
+/**
+ * @route   POST /api/v1/ai/predict
+ * @desc    Predict future expenses
+ * @access  Private
+ */
+router.post('/predict', predictUserExpenses);
+
+/**
  * @route   POST /api/v1/ai/chat
  * @desc    Conversational AI Financial Assistant Chatbot
  * @access  Private
  */
 router.post('/chat', askAIChat);
-
 module.exports = router;

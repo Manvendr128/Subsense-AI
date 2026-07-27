@@ -23,9 +23,9 @@ const chatSchema = new mongoose.Schema(
       default: 0,
     },
     model: {
-      type: String,
-      default: 'gpt-4o',
-    },
+    type: String,
+    default: 'gemini-3.1-flash-lite-preview',
+    }
   },
   {
     timestamps: true,
